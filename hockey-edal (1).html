@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Master EDAL · Checklist Partido</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdRkzzPb8pqTNaWxn4AoTwfQdn6GYxDRo",
+      authDomain: "master-edal-partidos.firebaseapp.com",
+      databaseURL: "https://master-edal-partidos-default-rtdb.firebaseio.com",
+      projectId: "master-edal-partidos",
+      storageBucket: "master-edal-partidos.firebasestorage.app",
+      messagingSenderId: "820754834967",
+      appId: "1:820754834967:web:108f5f8baf0b010c1c9e52"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    window._fbDb = db;
+    window._fbRef = ref;
+    window._fbOnValue = onValue;
+    window._fbSet = set;
+    window._fbGet = get;
+    window._fbReady = true;
+    window.dispatchEvent(new Event("fbready"));
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #112860; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #112860; }
+    ::-webkit-scrollbar-thumb { background: #cc0000; border-radius: 2px; }
+    .radio-opt { transition: all 0.15s; cursor: pointer; border: 1px solid #2a4a8c; border-radius: 6px; background: transparent; }
+    .radio-opt:hover { border-color: #FFD700; }
+    .radio-opt.sel { background: rgba(204,0,0,0.2) !important; border-color: #cc0000 !important; }
+    .check-row { transition: background 0.15s; cursor: pointer; }
+    .check-row:hover { background: rgba(255,215,0,0.06) !important; }
+    input, select { background: #0d1f4a !important; color: #e8f4fd !important; border: 1px solid #2a4a8c !important; border-radius: 6px; padding: 10px 14px; font-family: 'Barlow', sans-serif; font-size: 15px; width: 100%; outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus { border-color: #FFD700 !important; }
+    input[type=time]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    select option { background: #0d1f4a; }
+    .flabel { font-size: 12px; letter-spacing: 0.08em; color: #8aa8d8; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 6px; font-family: 'Barlow Condensed', sans-serif; }
+    .nav-btn { cursor: pointer; border: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; letter-spacing: 0.1em; font-size: 16px; padding: 13px 32px; border-radius: 6px; transition: all 0.2s; }
+    .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .pill-yes { background: rgba(16,185,129,0.2); border: 1px solid #10b981; color: #6ee7b7; }
+    .pill-no  { background: rgba(204,0,0,0.15); border: 1px solid #cc0000; color: #ff8080; }
+    .pill-yes.sel { background: rgba(16,185,129,0.45) !important; }
+    .pill-no.sel  { background: rgba(204,0,0,0.4) !important; }
+    .pill-btn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.05em; }
+    .step-tab { transition: all 0.2s; }
+    .pulse { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const EQUIPO = [
+  "Arce Carolina","Arce Ma Paz","Asin Nahir","Belliski Jesica",
+  "Bolotnikoff Carolina","Bordagaray Ma Alfonsina","Huenchul Maria Nazaria",
+  "Izaguirre Loana","Marchetti Mariana","Pablo Magdalena","Pascua Juliana",
+  "Peñalva Ma Alejandra","Suasnabar Milagros","Villanueva Silvana",
+  "Zelada Silvana","Fernandez Carolina"
+];
+
+const AZUL = "#1a3a7c";
+const AZUL_DARK = "#112860";
+const AZUL_MED = "#1e4a9e";
+const ROJO = "#cc0000";
+const ORO = "#FFD700";
+
+const initMatch = () => ({ rival:"", localidad:"", hora:"", arbitros:"", pagoArbitros:"", indumentaria:"" });
+const initEquip = () => ({ equipoArquera:false, mascaras:false, bochas:false, botiquin:false, rodilleras:false, manoplas:false });
+const initJugadoras = () => Object.fromEntries(EQUIPO.map(j => [j.replace(/\s/g,"_").replace(/[^a-zA-Z0-9_]/g,""), { nombre:j, juega:null, tercerTiempo:null }]));
+
+function EdalShield({ size=48 }) {
+  return (
+    <svg width={size} height={size*1.1} viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 10 L10 65 Q10 95 50 108 Q90 95 90 65 L90 10 Z" fill="#cc0000" stroke="#111" strokeWidth="3"/>
+      <clipPath id="sc"><path d="M10 10 L10 65 Q10 95 50 108 Q90 95 90 65 L90 10 Z"/></clipPath>
+      <g clipPath="url(#sc)">
+        {[0,1,2,3,4].map(row=>[0,1,2,3,4].map(col=>{
+          const x=col*20-10+(row%2===0?0:10), y=45+row*14;
+          return <rect key={`${row}-${col}`} x={x} y={y} width={14} height={14} transform={`rotate(45 ${x+7} ${y+7})`} fill={(row+col)%2===0?"#FFD700":"#cc0000"}/>;
+        }))}
+        <rect x="10" y="10" width="80" height="38" fill="#cc0000"/>
+        <rect x="10" y="5" width="18" height="16" fill="#cc0000" stroke="#111" strokeWidth="2"/>
+        <rect x="36" y="0" width="28" height="16" fill="#cc0000" stroke="#111" strokeWidth="2"/>
+        <rect x="72" y="5" width="18" height="16" fill="#cc0000" stroke="#111" strokeWidth="2"/>
+        <rect x="28" y="10" width="8" height="11" fill="#1a3a7c"/>
+        <rect x="64" y="10" width="8" height="11" fill="#1a3a7c"/>
+        <text x="50" y="42" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontWeight="900" fontSize="20" fill="#FFD700" stroke="#111" strokeWidth="0.5">EDAL</text>
+      </g>
+      <path d="M10 10 L10 65 Q10 95 50 108 Q90 95 90 65 L90 10 Z" fill="none" stroke="#111" strokeWidth="4"/>
+    </svg>
+  );
+}
+
+function Card({ children, style={} }) {
+  return <div style={{ background:"#0d1f4a", border:"1px solid #1e3a7c", borderRadius:10, padding:14, ...style }}>{children}</div>;
+}
+function CTitle({ children }) {
+  return <div style={{ fontWeight:700, fontSize:12, letterSpacing:"0.08em", marginBottom:12, color:ROJO, textTransform:"uppercase" }}>{children}</div>;
+}
+function STitle({ icon, title }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+      <span style={{ fontSize:22 }}>{icon}</span>
+      <h2 style={{ margin:0, fontSize:20, fontWeight:800, letterSpacing:"0.06em", color:"#fff", fontFamily:"'Barlow Condensed',sans-serif" }}>{title.toUpperCase()}</h2>
+    </div>
+  );
+}
+function Row({ label, value, valueColor }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid #0d1f4a" }}>
+      <span style={{ fontSize:13, color:"#6a8ab8" }}>{label}</span>
+      <span style={{ fontWeight:600, fontSize:14, color:valueColor||"#e8f4fd" }}>{value}</span>
+    </div>
+  );
+}
+function Checkbox({ checked }) {
+  return (
+    <div style={{ width:22, height:22, borderRadius:6, flexShrink:0, border:`2px solid ${checked?ROJO:"#2a4a8c"}`, background:checked?"rgba(204,0,0,0.2)":"transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:ORO, transition:"all 0.15s" }}>
+      {checked && "✓"}
+    </div>
+  );
+}
+function NavRow({ onBack, onNext, nextLabel }) {
+  return (
+    <div style={{ display:"flex", gap:10, marginTop:22 }}>
+      {onBack && <button className="nav-btn" onClick={onBack} style={{ background:"transparent", color:"#6a8ab8", border:"1px solid #1e3a7c", flex:1 }}>← Atrás</button>}
+      {onNext && <button className="nav-btn" onClick={onNext} style={{ background:`linear-gradient(135deg,${ROJO},#990000)`, color:"#fff", border:"none", flex:2 }}>{nextLabel}</button>}
+    </div>
+  );
+}
+
+function App() {
+  const [fbReady, setFbReady] = React.useState(!!window._fbReady);
+  const [step, setStep] = React.useState(0);
+
+  // Datos del partido (solo capitana los carga)
+  const [match, setMatch] = React.useState(initMatch());
+  const [equip, setEquip] = React.useState(initEquip());
+  const [tt, setTt] = React.useState({ aplica:null, fondoDisponible:null });
+
+  // Respuestas individuales (cada jugadora elige su nombre)
+  const [miNombre, setMiNombre] = React.useState("");
+  const [miJuega, setMiJuega] = React.useState(null);
+  const [miTT, setMiTT] = React.useState(null);
+  const [guardado, setGuardado] = React.useState(false);
+
+  // Datos en tiempo real de todas
+  const [resumenJugadoras, setResumenJugadoras] = React.useState({});
+  const [resumenMatch, setResumenMatch] = React.useState(null);
+  const [resumenEquip, setResumenEquip] = React.useState(null);
+  const [resumenTT, setResumenTT] = React.useState(null);
+  const [cargando, setCargando] = React.useState(true);
+
+  React.useEffect(() => {
+    const onReady = () => setFbReady(true);
+    if (window._fbReady) setFbReady(true);
+    else window.addEventListener("fbready", onReady);
+    return () => window.removeEventListener("fbready", onReady);
+  }, []);
+
+  React.useEffect(() => {
+    if (!fbReady) return;
+    const db = window._fbDb;
+    const ref = window._fbRef;
+    const onValue = window._fbOnValue;
+
+    // Escuchar datos del partido en tiempo real
+    const unsubMatch = onValue(ref(db, "partido/match"), snap => {
+      setResumenMatch(snap.val());
+      if (snap.val()) setMatch(snap.val());
+    });
+    const unsubEquip = onValue(ref(db, "partido/equip"), snap => {
+      setResumenEquip(snap.val());
+      if (snap.val()) setEquip(snap.val());
+    });
+    const unsubTT = onValue(ref(db, "partido/tt"), snap => {
+      setResumenTT(snap.val());
+      if (snap.val()) setTt(snap.val());
+    });
+    const unsubJug = onValue(ref(db, "partido/jugadoras"), snap => {
+      setResumenJugadoras(snap.val() || {});
+      setCargando(false);
+    });
+
+    return () => { unsubMatch(); unsubEquip(); unsubTT(); unsubJug(); };
+  }, [fbReady]);
+
+  const guardarDatosPartido = async () => {
+    const db = window._fbDb;
+    const ref = window._fbRef;
+    const set = window._fbSet;
+    await set(ref(db, "partido/match"), match);
+    await set(ref(db, "partido/equip"), equip);
+    await set(ref(db, "partido/tt"), tt);
+  };
+
+  const guardarMiRespuesta = async () => {
+    if (!miNombre) return;
+    const db = window._fbDb;
+    const ref = window._fbRef;
+    const set = window._fbSet;
+    const key = miNombre.replace(/\s/g,"_").replace(/[^a-zA-Z0-9_]/g,"");
+    await set(ref(db, `partido/jugadoras/${key}`), {
+      nombre: miNombre,
+      juega: miJuega,
+      tercerTiempo: miTT
+    });
+    setGuardado(true);
+  };
+
+  const nuevoPartido = async () => {
+    const db = window._fbDb;
+    const ref = window._fbRef;
+    const set = window._fbSet;
+    await set(ref(db, "partido"), null);
+    setMatch(initMatch());
+    setEquip(initEquip());
+    setTt({ aplica:null, fondoDisponible:null });
+    setMiNombre("");
+    setMiJuega(null);
+    setMiTT(null);
+    setGuardado(false);
+    setResumenJugadoras({});
+    setResumenMatch(null);
+    setStep(0);
+  };
+
+  const jugadasList = Object.values(resumenJugadoras).filter(j=>j.juega===true);
+  const quedanList = Object.values(resumenJugadoras).filter(j=>j.tercerTiempo===true);
+  const jugaCount = jugadasList.length;
+  const costo = Math.round(50000/(jugaCount>0?jugaCount:16));
+  const equipOk = resumenEquip ? Object.values(resumenEquip).filter(Boolean).length : Object.values(equip).filter(Boolean).length;
+
+  const steps = ["Partido","Equip.","Yo","Resumen"];
+
+  if (!fbReady) return (
+    <div style={{ minHeight:"100vh", background:AZUL_DARK, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16, fontFamily:"'Barlow Condensed',sans-serif", color:"#8aa8d8" }}>
+      <EdalShield size={60}/>
+      <div className="pulse" style={{ fontSize:16, letterSpacing:"0.1em" }}>CONECTANDO...</div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight:"100vh", background:AZUL_DARK, fontFamily:"'Barlow Condensed',sans-serif", color:"#e8f4fd" }}>
+
+      {/* HEADER */}
+      <div style={{ background:`linear-gradient(135deg,${AZUL_DARK} 0%,${AZUL} 60%,${AZUL_MED} 100%)`, borderBottom:`3px solid ${ROJO}`, padding:"16px 20px", display:"flex", alignItems:"center", gap:14, position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", right:-20, top:-20, width:120, height:120, background:"repeating-linear-gradient(45deg,rgba(255,215,0,0.04) 0px,rgba(255,215,0,0.04) 10px,transparent 10px,transparent 20px)" }}/>
+        <EdalShield size={52}/>
+        <div>
+          <div style={{ fontSize:11, color:ORO, letterSpacing:"0.2em", fontWeight:700, textTransform:"uppercase" }}>Hockey · Categoría Master</div>
+          <div style={{ fontSize:26, fontWeight:900, letterSpacing:"0.08em", lineHeight:1.1, color:"#fff" }}>MASTER EDAL</div>
+          <div style={{ fontSize:12, color:"#8aa8d8", letterSpacing:"0.1em", marginTop:1 }}>CHECKLIST DE PARTIDO</div>
+        </div>
+        {/* indicador online */}
+        <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:6, fontSize:11, color:"#6ee7b7" }}>
+          <div style={{ width:7, height:7, borderRadius:"50%", background:"#6ee7b7", boxShadow:"0 0 6px #6ee7b7" }}/>
+          EN VIVO
+        </div>
+      </div>
+
+      {/* TABS */}
+      <div style={{ display:"flex", background:"#0d1f4a", borderBottom:"1px solid #2a3a6a" }}>
+        {steps.map((s,i)=>(
+          <button key={i} className="step-tab" onClick={()=>setStep(i)} style={{ flex:"1 0 auto", padding:"10px 4px", border:"none", cursor:"pointer", background:step===i?"rgba(204,0,0,0.15)":"transparent", borderBottom:step===i?`3px solid ${ROJO}`:"3px solid transparent", color:step===i?ORO:"#4a6a9a", fontSize:10, fontWeight:700, letterSpacing:"0.07em", fontFamily:"'Barlow Condensed',sans-serif", textTransform:"uppercase" }}>
+            <div style={{ fontSize:15, marginBottom:2 }}>{["📋","🎒","🙋","✅"][i]}</div>
+            {s}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ maxWidth:640, margin:"0 auto", padding:"20px 14px" }}>
+
+        {/* ── PASO 0: DATOS DEL PARTIDO (capitana) ── */}
+        {step===0 && (
+          <div>
+            <STitle icon="📋" title="Datos del Partido"/>
+            <div style={{ background:"rgba(255,215,0,0.06)", border:`1px solid rgba(255,215,0,0.2)`, borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#c8a800" }}>
+              📌 Esta sección la completa la <strong>capitana / organizadora</strong>. Las demás van directo a "Yo".
+            </div>
+            <div style={{ display:"grid", gap:14 }}>
+              <div>
+                <span className="flabel">Rival</span>
+                <input placeholder="Nombre del equipo rival" value={match.rival} onChange={e=>setMatch(m=>({...m,rival:e.target.value}))}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div>
+                  <span className="flabel">Localía</span>
+                  <div style={{ display:"flex", gap:8, marginTop:2 }}>
+                    {["Local","Visitante"].map(opt=>(
+                      <div key={opt} className={`radio-opt${match.localidad===opt?" sel":""}`} onClick={()=>setMatch(m=>({...m,localidad:opt}))}
+                        style={{ flex:1, padding:"10px 0", textAlign:"center", fontSize:13, fontWeight:600, color:match.localidad===opt?ORO:"#8aa8d8" }}>
+                        {opt==="Local"?"🏠":"✈️"}<br/>{opt}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="flabel">Hora</span>
+                  <input type="time" value={match.hora} onChange={e=>setMatch(m=>({...m,hora:e.target.value}))}/>
+                </div>
+              </div>
+              <Card>
+                <CTitle>⚖️ Árbitros</CTitle>
+                <div style={{ display:"grid", gap:12 }}>
+                  <div>
+                    <span className="flabel">Valor ($)</span>
+                    <input type="number" placeholder="$ monto total" value={match.arbitros} onChange={e=>setMatch(m=>({...m,arbitros:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <span className="flabel">Forma de pago</span>
+                    <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                      {["Fondo común","$2.000 c/u"].map(opt=>(
+                        <div key={opt} className={`radio-opt${match.pagoArbitros===opt?" sel":""}`} onClick={()=>setMatch(m=>({...m,pagoArbitros:opt}))}
+                          style={{ flex:1, padding:"10px 6px", textAlign:"center", fontSize:13, fontWeight:600, color:match.pagoArbitros===opt?ORO:"#8aa8d8" }}>
+                          {opt==="Fondo común"?"🏦":"💵"} {opt}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <CTitle>👕 Indumentaria</CTitle>
+                <div style={{ display:"flex", gap:10 }}>
+                  {[{val:"Azul",emoji:"🔵",desc:"Remera + medias azul"},{val:"Blanca",emoji:"⚪",desc:"Remera + medias blanca"}].map(opt=>(
+                    <div key={opt.val} className={`radio-opt${match.indumentaria===opt.val?" sel":""}`} onClick={()=>setMatch(m=>({...m,indumentaria:opt.val}))}
+                      style={{ flex:1, padding:"12px 8px", textAlign:"center", cursor:"pointer" }}>
+                      <div style={{ fontSize:24 }}>{opt.emoji}</div>
+                      <div style={{ fontWeight:700, fontSize:14, color:match.indumentaria===opt.val?ORO:"#e8f4fd" }}>{opt.val}</div>
+                      <div style={{ fontSize:11, color:"#8aa8d8", marginTop:2 }}>{opt.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card>
+                <CTitle>🎒 Equipamiento</CTitle>
+                {[
+                  {key:"equipoArquera",label:"Equipo de arquera",emoji:"🥅"},
+                  {key:"mascaras",label:"Máscaras para cortos",emoji:"😷"},
+                  {key:"bochas",label:"Bochas",emoji:"🏑"},
+                  {key:"botiquin",label:"Botiquín",emoji:"🩹"},
+                  {key:"rodilleras",label:"Rodilleras",emoji:"🦵"},
+                  {key:"manoplas",label:"Manoplas",emoji:"🧤"},
+                ].map(item=>(
+                  <div key={item.key} className="check-row" onClick={()=>setEquip(e=>({...e,[item.key]:!e[item.key]}))}
+                    style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 8px", marginBottom:2, borderRadius:8, background:equip[item.key]?"rgba(255,215,0,0.05)":"transparent" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:18 }}>{item.emoji}</span>
+                      <span style={{ fontSize:15, fontWeight:500 }}>{item.label}</span>
+                    </div>
+                    <Checkbox checked={equip[item.key]}/>
+                  </div>
+                ))}
+              </Card>
+              <Card>
+                <CTitle>🍻 Tercer Tiempo</CTitle>
+                {match.localidad==="Local" && (
+                  <div style={{ background:"rgba(255,215,0,0.08)", borderRadius:8, padding:"10px 12px", marginBottom:12, fontSize:13, color:"#c8a800" }}>
+                    🏠 Somos locales — nos toca organizar
+                  </div>
+                )}
+                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                  {["Sí — lo hacemos nosotras","No aplica"].map(opt=>(
+                    <div key={opt} className={`radio-opt${tt.aplica===opt?" sel":""}`} onClick={()=>setTt(t=>({...t,aplica:opt}))}
+                      style={{ flex:1, padding:"10px 6px", textAlign:"center", fontSize:12, fontWeight:600, color:tt.aplica===opt?ORO:"#8aa8d8", cursor:"pointer" }}>
+                      {opt}
+                    </div>
+                  ))}
+                </div>
+                {tt.aplica==="Sí — lo hacemos nosotras" && (
+                  <div>
+                    <span className="flabel">¿El fondo tiene disponibilidad?</span>
+                    <div style={{ display:"flex", gap:8, marginTop:6 }}>
+                      {["✅ Sí, sale del fondo","❌ No, cada una pone"].map(opt=>(
+                        <div key={opt} className={`radio-opt${tt.fondoDisponible===opt?" sel":""}`} onClick={()=>setTt(t=>({...t,fondoDisponible:opt}))}
+                          style={{ flex:1, padding:"10px 6px", textAlign:"center", fontSize:12, fontWeight:600, color:tt.fondoDisponible===opt?ORO:"#8aa8d8", cursor:"pointer" }}>
+                          {opt}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </div>
+            <button className="nav-btn" onClick={async()=>{ await guardarDatosPartido(); setStep(2); }}
+              style={{ marginTop:20, width:"100%", background:`linear-gradient(135deg,${ROJO},#990000)`, color:"#fff", border:"none" }}>
+              Guardar datos del partido ✓
+            </button>
+          </div>
+        )}
+
+        {/* ── PASO 1: EQUIPAMIENTO (redirige) ── */}
+        {step===1 && (
+          <div>
+            <STitle icon="🎒" title="Equipamiento"/>
+            <div style={{ background:"rgba(255,215,0,0.06)", border:`1px solid rgba(255,215,0,0.2)`, borderRadius:8, padding:"12px 14px", marginBottom:16, fontSize:14, color:"#c8a800" }}>
+              El equipamiento lo carga la capitana en la sección <strong>"Partido"</strong>.
+            </div>
+            {resumenEquip ? (
+              <Card>
+                {[
+                  {key:"equipoArquera",label:"Equipo de arquera",emoji:"🥅"},
+                  {key:"mascaras",label:"Máscaras para cortos",emoji:"😷"},
+                  {key:"bochas",label:"Bochas",emoji:"🏑"},
+                  {key:"botiquin",label:"Botiquín",emoji:"🩹"},
+                  {key:"rodilleras",label:"Rodilleras",emoji:"🦵"},
+                  {key:"manoplas",label:"Manoplas",emoji:"🧤"},
+                ].map(item=>(
+                  <div key={item.key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 8px", borderBottom:"1px solid #0d1f4a" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:18 }}>{item.emoji}</span>
+                      <span style={{ fontSize:15 }}>{item.label}</span>
+                    </div>
+                    <span style={{ fontSize:13, color:resumenEquip[item.key]?"#6ee7b7":"#ff6b6b" }}>{resumenEquip[item.key]?"✅":"⬜"}</span>
+                  </div>
+                ))}
+              </Card>
+            ) : (
+              <div style={{ textAlign:"center", color:"#4a6a9a", padding:40 }}>Esperando que la capitana cargue los datos...</div>
+            )}
+            <NavRow onBack={()=>setStep(0)} onNext={()=>setStep(2)} nextLabel="Mis respuestas →"/>
+          </div>
+        )}
+
+        {/* ── PASO 2: YO (cada jugadora) ── */}
+        {step===2 && (
+          <div>
+            <STitle icon="🙋" title="Mis Respuestas"/>
+
+            {/* Info del partido si ya está cargada */}
+            {resumenMatch && resumenMatch.rival && (
+              <Card style={{ marginBottom:14 }}>
+                <CTitle>📋 Partido</CTitle>
+                <Row label="Rival" value={resumenMatch.rival}/>
+                <Row label="Localía" value={resumenMatch.localidad||"—"}/>
+                <Row label="Hora" value={resumenMatch.hora||"—"}/>
+                <Row label="Indumentaria" value={resumenMatch.indumentaria?`${resumenMatch.indumentaria==="Azul"?"🔵":"⚪"} ${resumenMatch.indumentaria}`:"—"}/>
+              </Card>
+            )}
+
+            {guardado ? (
+              <div style={{ background:"rgba(16,185,129,0.12)", border:"1px solid #10b981", borderRadius:10, padding:20, textAlign:"center" }}>
+                <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
+                <div style={{ fontSize:18, fontWeight:700, color:"#6ee7b7", marginBottom:4 }}>¡Respuesta guardada!</div>
+                <div style={{ fontSize:14, color:"#8aa8d8", marginBottom:16 }}>{miNombre}</div>
+                <div style={{ display:"flex", gap:12, justifyContent:"center" }}>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontSize:13, color:"#8aa8d8" }}>¿Juega?</div>
+                    <div style={{ fontSize:16, fontWeight:700, color:miJuega===true?"#6ee7b7":"#ff8080" }}>{miJuega===true?"Sí ✓":miJuega===false?"No":"—"}</div>
+                  </div>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontSize:13, color:"#8aa8d8" }}>3er tiempo</div>
+                    <div style={{ fontSize:16, fontWeight:700, color:miTT===true?"#6ee7b7":"#ff8080" }}>{miTT===true?"Sí ✓":miTT===false?"No":"—"}</div>
+                  </div>
+                </div>
+                <button className="nav-btn" onClick={()=>setGuardado(false)} style={{ marginTop:16, background:"transparent", color:"#8aa8d8", border:"1px solid #1e3a7c", fontSize:13, padding:"8px 20px" }}>
+                  Cambiar respuesta
+                </button>
+              </div>
+            ) : (
+              <Card>
+                <CTitle>🏑 ¿Quién sos?</CTitle>
+                <div style={{ marginBottom:16 }}>
+                  <span className="flabel">Seleccioná tu nombre</span>
+                  <select value={miNombre} onChange={e=>setMiNombre(e.target.value)}>
+                    <option value="">— Elegí tu nombre —</option>
+                    {EQUIPO.map(j=>(
+                      <option key={j} value={j}>{j}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+                  <div>
+                    <span className="flabel">¿Jugás este partido?</span>
+                    <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                      <button className={`pill-btn pill-yes${miJuega===true?" sel":""}`} onClick={()=>setMiJuega(true)} style={{ flex:1, padding:"10px 0" }}>Sí</button>
+                      <button className={`pill-btn pill-no${miJuega===false?" sel":""}`} onClick={()=>setMiJuega(false)} style={{ flex:1, padding:"10px 0" }}>No</button>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="flabel">¿Te quedás al 3er tiempo?</span>
+                    <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                      <button className={`pill-btn pill-yes${miTT===true?" sel":""}`} onClick={()=>setMiTT(true)} style={{ flex:1, padding:"10px 0" }}>Sí</button>
+                      <button className={`pill-btn pill-no${miTT===false?" sel":""}`} onClick={()=>setMiTT(false)} style={{ flex:1, padding:"10px 0" }}>No</button>
+                    </div>
+                  </div>
+                </div>
+
+                <button className="nav-btn" onClick={guardarMiRespuesta} disabled={!miNombre}
+                  style={{ width:"100%", background:miNombre?`linear-gradient(135deg,${ROJO},#990000)`:"#1e3a7c", color:"#fff", border:"none", opacity:miNombre?1:0.5 }}>
+                  Guardar mi respuesta ✓
+                </button>
+              </Card>
+            )}
+
+            <div style={{ marginTop:14, padding:"10px 14px", background:"rgba(26,58,124,0.3)", borderRadius:8, fontSize:13, color:"#6a8ab8", textAlign:"center" }}>
+              {cargando ? "Cargando..." : `${Object.keys(resumenJugadoras).length} / 16 jugadoras respondieron`}
+            </div>
+
+            <NavRow onNext={()=>setStep(3)} nextLabel="Ver Resumen →"/>
+          </div>
+        )}
+
+        {/* ── PASO 3: RESUMEN (tiempo real) ── */}
+        {step===3 && (
+          <div>
+            <STitle icon="✅" title="Resumen en Vivo"/>
+
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16, padding:"8px 14px", background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.2)", borderRadius:8 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:"#6ee7b7", boxShadow:"0 0 6px #6ee7b7" }}/>
+              <span style={{ fontSize:13, color:"#6ee7b7" }}>Datos en tiempo real · se actualizan automáticamente</span>
+            </div>
+
+            {resumenMatch && resumenMatch.rival && (
+              <Card>
+                <CTitle>📋 Partido</CTitle>
+                <Row label="Rival" value={resumenMatch.rival||"—"}/>
+                <Row label="Localía" value={resumenMatch.localidad||"—"}/>
+                <Row label="Hora" value={resumenMatch.hora||"—"}/>
+                <Row label="Árbitros" value={resumenMatch.arbitros?`$${Number(resumenMatch.arbitros).toLocaleString("es-AR")}`:"—"}/>
+                <Row label="Pago árbitros" value={resumenMatch.pagoArbitros||"—"}/>
+                <Row label="Indumentaria" value={resumenMatch.indumentaria?`${resumenMatch.indumentaria==="Azul"?"🔵":"⚪"} ${resumenMatch.indumentaria}`:"—"}/>
+              </Card>
+            )}
+
+            {resumenEquip && (
+              <Card style={{ marginTop:12 }}>
+                <CTitle>🎒 Equipamiento ({Object.values(resumenEquip).filter(Boolean).length}/6)</CTitle>
+                {[
+                  {key:"equipoArquera",label:"Equipo arquera"},
+                  {key:"mascaras",label:"Máscaras"},
+                  {key:"bochas",label:"Bochas"},
+                  {key:"botiquin",label:"Botiquín"},
+                  {key:"rodilleras",label:"Rodilleras"},
+                  {key:"manoplas",label:"Manoplas"},
+                ].map(item=>(
+                  <Row key={item.key} label={item.label} value={resumenEquip[item.key]?"✅ Confirmado":"⬜ Pendiente"} valueColor={resumenEquip[item.key]?"#6ee7b7":"#ff6b6b"}/>
+                ))}
+              </Card>
+            )}
+
+            <Card style={{ marginTop:12 }}>
+              <CTitle>👥 Jugadoras ({Object.keys(resumenJugadoras).length}/16 respondieron)</CTitle>
+
+              {/* Juegan */}
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12, color:"#8aa8d8", marginBottom:6, letterSpacing:"0.06em" }}>JUEGAN ESTE PARTIDO ({jugadasList.length})</div>
+                {jugadasList.length>0 ? (
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                    {jugadasList.map(j=>(
+                      <span key={j.nombre} style={{ background:"rgba(255,215,0,0.1)", border:"1px solid rgba(255,215,0,0.3)", borderRadius:20, padding:"3px 10px", fontSize:11, color:ORO }}>{j.nombre}</span>
+                    ))}
+                  </div>
+                ) : <div style={{ fontSize:13, color:"#4a6a9a" }}>Nadie confirmó todavía</div>}
+              </div>
+
+              {/* No juegan */}
+              {Object.values(resumenJugadoras).filter(j=>j.juega===false).length > 0 && (
+                <div style={{ marginBottom:12 }}>
+                  <div style={{ fontSize:12, color:"#8aa8d8", marginBottom:6, letterSpacing:"0.06em" }}>NO JUEGAN ({Object.values(resumenJugadoras).filter(j=>j.juega===false).length})</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                    {Object.values(resumenJugadoras).filter(j=>j.juega===false).map(j=>(
+                      <span key={j.nombre} style={{ background:"rgba(204,0,0,0.1)", border:"1px solid rgba(204,0,0,0.3)", borderRadius:20, padding:"3px 10px", fontSize:11, color:"#ff8080" }}>{j.nombre}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sin responder */}
+              {(() => {
+                const respondieron = new Set(Object.values(resumenJugadoras).map(j=>j.nombre));
+                const sinResp = EQUIPO.filter(j=>!respondieron.has(j));
+                return sinResp.length>0 ? (
+                  <div>
+                    <div style={{ fontSize:12, color:"#8aa8d8", marginBottom:6, letterSpacing:"0.06em" }}>SIN RESPONDER ({sinResp.length})</div>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                      {sinResp.map(j=>(
+                        <span key={j} style={{ background:"rgba(255,255,255,0.05)", border:"1px solid #2a4a8c", borderRadius:20, padding:"3px 10px", fontSize:11, color:"#4a6a9a" }}>{j}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </Card>
+
+            <Card style={{ marginTop:12 }}>
+              <CTitle>🍻 Tercer Tiempo</CTitle>
+              {resumenTT && <Row label="¿Lo hacemos?" value={resumenTT.aplica||"—"}/>}
+              {resumenTT?.aplica==="Sí — lo hacemos nosotras" && (
+                <>
+                  <Row label={`Costo por jugadora (${jugaCount>0?jugaCount:16})`} value={`$${costo.toLocaleString("es-AR")}`} valueColor={ORO}/>
+                  <Row label="Financiamiento" value={resumenTT.fondoDisponible||"—"}/>
+                  <div style={{ marginTop:10 }}>
+                    <div style={{ fontSize:12, color:"#8aa8d8", marginBottom:6, letterSpacing:"0.06em" }}>SE QUEDAN ({quedanList.length})</div>
+                    {quedanList.length>0 ? (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                        {quedanList.map(j=>(
+                          <span key={j.nombre} style={{ background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:20, padding:"3px 10px", fontSize:11, color:"#6ee7b7" }}>{j.nombre}</span>
+                        ))}
+                      </div>
+                    ) : <div style={{ fontSize:13, color:"#4a6a9a" }}>Nadie confirmó todavía</div>}
+                  </div>
+                </>
+              )}
+            </Card>
+
+            <button className="nav-btn" onClick={nuevoPartido}
+              style={{ marginTop:20, width:"100%", background:"rgba(204,0,0,0.15)", color:ROJO, border:`1px solid ${ROJO}` }}>
+              🔄 Nuevo Partido (borra todo)
+            </button>
+          </div>
+        )}
+
+      </div>
+      <div style={{ textAlign:"center", padding:"16px 0 28px", color:"#2a4a8c", fontSize:11, letterSpacing:"0.1em" }}>
+        MASTER EDAL · HOCKEY
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
